@@ -1,4 +1,4 @@
-import { Agent } from "@mastra/core";
+import { Agent } from "@mastra/core/agent";
 import { openai } from "@ai-sdk/openai";
 import { vector_search } from "../tools/vectorSearch";
 
@@ -11,7 +11,7 @@ Cite the year when quoting. Be transparent if the answer is not in the source.
   `,
   model: openai("gpt-4o"),
   tools: {
-    vector_search, // ✅ Must be an object
+    vector_search,
   },
-  memory: undefined, // Or provide memory instance later
 });
+  

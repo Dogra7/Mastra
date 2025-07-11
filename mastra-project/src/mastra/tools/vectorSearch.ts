@@ -1,4 +1,6 @@
-import { createTool } from "@mastra/core";
+// src/mastra/tools/vectorSearch.ts
+
+import { createTool, ToolExecutionContext } from "@mastra/core";
 import { PgVector } from "@mastra/pg";
 import { z } from "zod";
 import { embed } from "ai";
@@ -7,55 +9,48 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const vectorInput = z.object({
+// Define schema
+const inputSchema = z.object({
   query: z.string(),
 });
 
-const vectorOutput = z.object({
+const outputSchema = z.object({
   results: z.array(z.string()),
 });
 
+// Setup vector store
 const vectorStore = new PgVector({
   connectionString: process.env.DATABASE_URL!,
 });
 
+// Export tool
 export const vector_search = createTool({
   id: "vector_search",
   description: "Search Berkshire Hathaway letters using semantic vector search",
-  inputSchema: z.object({
-    query: z.string(),
-  }),
-  outputSchema: z.object({
-    results: z.array(z.string()),
-  }),
+  inputSchema,
+  outputSchema,
 
-execute: async (context) => {
-  const input = context.parsedInput ?? context.input;
+  // This is the correct signature Mastra expects
+  async execute(context: ToolExecutionContext<typeof inputSchema>) {
+    const { query } = context.parsedInput;
 
-  if (!input || !input.query) {
-    throw new Error("Missing 'query' input to vector_search tool.");
-  }
+    const { embedding } = await embed({
+      value: query,
+      model: openai.embedding("text-embedding-3-small"),
+    });
 
-  const { query } = input;
+    const hits = await vectorStore.query({
+      indexName: "berkshire_letters",
+      queryVector: embedding,
+      topK: 5,
+    });
 
-  const { embedding } = await embed({
-    value: query,
-    model: openai.embedding("text-embedding-3-small"),
-  });
+    const formatted = hits.map((hit) => {
+      const year = hit.metadata?.year ?? "unknown";
+      const snippet = (hit.metadata?.text ?? "").slice(0, 300);
+      return `(${year}) ${snippet}...`;
+    });
 
-  const hits = await vectorStore.query({
-    indexName: "berkshire_letters",
-    queryVector: embedding,
-    topK: 5,
-  });
-
-  const formatted = hits.map((hit) => {
-    const year = hit.metadata?.year ?? "unknown";
-    const snippet = (hit.metadata?.text ?? "").slice(0, 300);
-    return `(${year}) ${snippet}...`;
-  });
-
-  return { results: formatted };
-}
-
+    return { results: formatted };
+  },
 });

@@ -1,24 +1,12 @@
-
 import { Mastra } from '@mastra/core/mastra';
-import { PinoLogger } from '@mastra/loggers';
-import { LibSQLStore } from '@mastra/libsql';
-import { weatherWorkflow } from './workflows/weather-workflow';
-import { weatherAgent } from './agents/weather-agent';
+import { PgVector } from '@mastra/pg';
 import { buffettAgent } from './agents/buffettAgent';
 
-
-export const mastra = new Mastra({
-  workflows: { weatherWorkflow },
-  agents: {
-    weatherAgent,
-    buffettAgent, // 👈 Add this line
-  },
-  storage: new LibSQLStore({
-    url: ':memory:',
-  }),
-  logger: new PinoLogger({
-    name: 'Mastra',
-    level: 'info',
-  }),
+const pgVector = new PgVector({
+  connectionString: process.env.DATABASE_URL!,
 });
 
+export const mastra = new Mastra({
+  agents: { buffettAgent },
+  vectors: { pgVector }, // 👈 this is CRUCIAL
+});
